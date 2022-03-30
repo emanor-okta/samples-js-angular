@@ -11,8 +11,10 @@
  */
 
 import { Component, Inject, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { OktaAuthStateService, OKTA_AUTH } from '@okta/okta-angular';
 import { OktaAuth } from '@okta/okta-auth-js';
+
 
 interface ResourceServerExample {
   label: string;
@@ -28,7 +30,7 @@ export class HomeComponent implements OnInit {
   resourceServerExamples: Array<ResourceServerExample>;
   userName: string = '';
 
-  constructor(public authStateService: OktaAuthStateService, @Inject(OKTA_AUTH) private oktaAuth : OktaAuth) {
+  constructor(public authStateService: OktaAuthStateService, @Inject(OKTA_AUTH) private oktaAuth : OktaAuth, private http: HttpClient) {
     this.resourceServerExamples = [
       {
         label: 'Node/Express Resource Server Example',
@@ -42,10 +44,60 @@ export class HomeComponent implements OnInit {
   }
 
   async ngOnInit() {
+    if (!await this.setUserClaims()) {
+      this.oktaAuth.session.exists()
+      .then(exists => {
+        console.log('session exists: ' + exists);
+        if (exists) {
+          this.oktaAuth.token.getWithoutPrompt()
+          .then(async tokenResp => {
+            this.oktaAuth.tokenManager.setTokens(tokenResp.tokens);
+            await this.setUserClaims();
+          })
+          .catch(err => {
+            console.log('Error token.getWithoutPrompt(): ' + err)
+          });
+        } else {
+          console.log('Session does not exist');
+          this.http.get('https://{ORG}.okta.com/api/v1/sessions/me', {withCredentials: true})
+          .subscribe(
+            (response) => {
+              console.log('Session Exists in Other Org: ' + response);
+              this.oktaAuth.token.getWithPopup({idp: '{IDP}'})
+              .then(async tokenResp => {
+                this.oktaAuth.tokenManager.setTokens(tokenResp.tokens);
+                await this.setUserClaims();
+              })
+              .catch(err => {
+                console.log('Error token.getWithPopup(): ' + err)
+              });
+            },
+            (error) => {
+              console.log('Session Doesn\'t Exists in Other Org: ' + error);
+            },
+            () => {
+              // complete handler
+              console.log("GET complete");
+            }
+          )
+
+        }
+      })
+      .catch(err => {
+        console.log('Error calling session.exists(): ' + err);
+      });
+    }
+  }
+
+  async setUserClaims() {
     const isAuthenticated = await this.oktaAuth.isAuthenticated();
+    console.log('isAuthenticated: ' + isAuthenticated);
     if (isAuthenticated) {
       const userClaims = await this.oktaAuth.getUser();
       this.userName = userClaims.name as string;
+      return true;
+    } else {
+      return false;
     }
   }
 }
