@@ -63,7 +63,7 @@ export class HomeComponent implements OnInit {
           .subscribe(
             (response) => {
               console.log('Session Exists in Other Org: ' + response);
-              this.oktaAuth.token.getWithPopup({idp: '{IDP}'})
+              this.oktaAuth.token.getWithPopup({idp: '{IDP_ID}'})
               .then(async tokenResp => {
                 this.oktaAuth.tokenManager.setTokens(tokenResp.tokens);
                 await this.setUserClaims();

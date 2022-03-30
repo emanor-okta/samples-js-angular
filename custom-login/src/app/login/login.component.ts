@@ -44,6 +44,12 @@ export class LoginComponent implements OnInit {
       },
       authClient: oktaAuth,
       useInteractionCodeFlow: sampleConfig.widget.useInteractionCodeFlow === 'true',
+      features: {
+        idpDiscovery: true
+      },
+      idpDiscovery: {
+        requestContext: 'http://localhost:8080/'
+      }
     });
   }
 
